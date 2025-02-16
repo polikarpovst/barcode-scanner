@@ -27,12 +27,6 @@ const styles = /* css */ `
     display: none !important;
   }
 
-  .container {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-  }
-
   ul {
     max-width: 36.25rem;
     margin: 0;
@@ -74,12 +68,9 @@ const styles = /* css */ `
     }
   }
 
-  .empty-message {
-    display: none;
-  }
-
-  ul:empty + .empty-message {
-    display: block;
+  .actions {
+    display: flex;
+    gap: 0.25rem;
   }
 
   .history-actions {
@@ -88,46 +79,33 @@ const styles = /* css */ `
     margin-top: 1rem;
   }
 
-  .btn {
-    padding: 0.5rem 1rem;
-    border: none;
+  footer {
+    padding: 1rem;
+  }
+
+  footer button {
+    width: 100%;
+    padding: 0.625rem;
+    border: 0;
     border-radius: var(--border-radius);
-    font-size: 0.9rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    color: #ffffff;
-    transition: background-color 0.3s ease;
-  }
-
-  .btn-danger {
     background-color: var(--error-color);
+    color: var(--empty-history-button-color);
+    font-size: 1rem;
+    cursor: pointer;
+    text-wrap: nowrap;
   }
 
-  .btn-danger:hover {
-    background-color: darken(var(--error-color), 10%);
-  }
-
-  .btn-success {
-    background-color: var(--success-color);
-  }
-
-  .btn-success:hover {
-    background-color: darken(var(--success-color), 10%);
-  }
-
-  .btn-export {
-    background-color: #4CAF50;
-  }
-
-  .btn-export:hover {
-    background-color: #45a049;
-  }
-
-  .btn svg {
+  footer button svg {
     width: 1.125em;
     height: 1.125em;
+  }
+
+  ul:empty + footer > button {
+    display: none;
+  }
+
+  ul:not(:empty) + footer > .empty-message {
+    display: none;
   }
 `;
 
@@ -139,13 +117,13 @@ template.innerHTML = /* html */ `
   <footer>
     <div class="empty-message">There are no saved items in history.</div>
     <div class="history-actions">
-      <button type="button" id="emptyHistoryBtn" class="btn btn-danger">
+      <button type="button" id="emptyHistoryBtn">
         <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
           <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5Zm-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5ZM4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06Zm6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.528ZM8 4.5a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0V5a.5.5 0 0 0-.5-.5Z"/>
         </svg>
         Empty history
       </button>
-      <button type="button" id="exportCsvBtn" class="btn btn-export">
+      <button type="button" id="exportCsvBtn">
         <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16">
           <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
           <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
@@ -201,11 +179,7 @@ class BSHistory extends HTMLElement {
 
     const [getHistoryError, history = []] = await getHistory();
 
-    if (
-      !getHistoryError &&
-      Array.isArray(history) &&
-      !history.find(h => h.item === historyItem.item)
-    ) {
+    if (!getHistoryError && Array.isArray(history)) {
       const data = [...history, historyItem];
 
       const [setHistoryError] = await setHistory(data);
@@ -268,43 +242,47 @@ class BSHistory extends HTMLElement {
     const fragment = document.createDocumentFragment();
 
     data.forEach(historyItem => {
-      fragment.appendChild(this.#createHistoryItemElement(historyItem));
+      fragment.appendChild(this.#createHistoryItemElement(historyItem.item, historyItem.comment));
     });
 
     this.#historyListEl.appendChild(fragment);
   }
 
   /**
-   * Creates a history item element with an optional comment.
+   * Creates a history item element.
    * If the item is a URL, it will be an anchor element, otherwise a span element.
    *
-   * @param {Object} historyItem - The history item object containing item and comment
+   * @param {string} item - The history item to create an element for
+   * @param {string} comment - The related history item comment
    * @returns {HTMLLIElement} The history item element
    */
-  #createHistoryItemElement(historyItem) {
-    const { item, comment } = historyItem;
+  #createHistoryItemElement(item, comment = '') {
+    console.log([item, comment])
     const itemId = uuid();
     const li = document.createElement('li');
     li.setAttribute('data-value', item);
 
-    let itemElement;
+    let historyItem;
+    let historyItemComment;
 
     try {
       new URL(item);
-      itemElement = document.createElement('a');
-      itemElement.href = item;
-      itemElement.setAttribute('target', '_blank');
-      itemElement.setAttribute('rel', 'noreferrer noopener');
+      historyItem = document.createElement('a');
+      historyItem.href = item;
+      historyItem.setAttribute('target', '_blank');
+      historyItem.setAttribute('rel', 'noreferrer noopener');
     } catch {
-      itemElement = document.createElement('span');
+      historyItem = document.createElement('span');
     }
 
-    itemElement.textContent = item;
-    itemElement.setAttribute('id', `historyItem-${itemId}`);
+    historyItem.textContent = item;
+    historyItem.setAttribute('id', `historyItem-${itemId}`);
 
-    const commentEl = document.createElement('span');
-    commentEl.textContent = comment;
-    commentEl.className = 'comment';
+    // Add an empty comment section to the value
+    historyItemComment = document.createElement('span');
+    historyItemComment.textContent = comment;
+    historyItemComment.setAttribute('id', `historyItemComment-${itemId}`);
+    historyItemComment.className = 'comment';
 
     const actionsEl = document.createElement('div');
     actionsEl.className = 'actions';
@@ -331,8 +309,8 @@ class BSHistory extends HTMLElement {
     `;
     actionsEl.appendChild(removeBtn);
 
-    li.appendChild(itemElement);
-    li.appendChild(commentEl);
+    li.appendChild(historyItem);
+    li.appendChild(historyItemComment);
     li.appendChild(actionsEl);
 
     return li;
