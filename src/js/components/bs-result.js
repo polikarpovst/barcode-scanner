@@ -68,6 +68,16 @@ const styles = /* css */ `
     font-size: 0.9rem;
     cursor: pointer;
   }
+
+  .result__comment {
+    width: 100%;
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    border: 1px solid var(--border);
+    border-radius: var(--border-radius);
+    background-color: var(--background-input);
+    color: var(--text-main);
+  }
 `;
 
 const template = document.createElement('template');
@@ -76,6 +86,8 @@ template.innerHTML = /* html */ `
   <style>${styles}</style>
 
   <div class="result">
+    <div class="result__item"></div>
+    <input type="text" class="result__comment" placeholder="Add a comment..." />
     <div class="result__actions">
       <custom-clipboard-copy></custom-clipboard-copy>
 
@@ -128,6 +140,20 @@ class BSResult extends HTMLElement {
       if (webShareEl) {
         webShareEl.hidden = true;
       }
+    }
+
+    // Add event listener for the comment input
+    const commentInput = this.shadowRoot.querySelector('.result__comment');
+    commentInput?.addEventListener('input', this.#handleCommentInputChange.bind(this));
+  }
+
+  #handleCommentInputChange(event) {
+    this.comment = event.target.value;
+
+    // Update the latest history item with the new comment
+    const bsHistoryEl = document.querySelector('bs-history');
+    if (bsHistoryEl) {
+      bsHistoryEl.updateLatestComment(this.comment);
     }
   }
 
@@ -185,6 +211,12 @@ class BSResult extends HTMLElement {
     } else {
       webShareEl.hidden = true;
       webShareEl.removeAttribute('share-text');
+    }
+
+    // Add barcode to history
+    const bsHistoryEl = document.querySelector('bs-history');
+    if (bsHistoryEl && isValidValue) {
+      bsHistoryEl.add({ item: value, comment: '' });
     }
   }
 
